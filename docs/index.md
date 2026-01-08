@@ -32,6 +32,14 @@ const members = [
     links: [
       { icon: 'github', link: 'https://github.com/tom-ludwig' }
     ]
+  },
+  {
+    avatar: 'https://github.com/louis-kauer.png',
+    name: 'Louis Kauer',
+    title: 'Maintainer',
+    links: [
+      { icon: 'github', link: 'https://github.com/louis-kauer' }
+    ]
   }
   // Add more team members as needed
 ]
