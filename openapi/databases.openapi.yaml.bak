@@ -1,0 +1,403 @@
+openapi: 3.0.1
+info:
+  title: Keeper Database Service API
+  description: Manages the lifecycle of database instances for CNPG databases.
+  version: 1.0.0
+  license:
+    name: Proprietary
+    description: At the moment no one is allowed to use this commercially.
+tags:
+  - name: Databases
+    description: Database instance management operations
+
+paths:
+  /databases/{id}:
+    get:
+      summary: Get database details
+      deprecated: false
+      description: Retrieves detailed information about a specific database instance, including its current status, specifications, and connection information (if available).
+      tags:
+        - Databases
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Database details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseInstance'
+          headers:
+            ETag:
+              required: false
+              description: Opaque version identifier (integer cast to string)
+              schema:
+                type: string
+                example: '5'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+    patch:
+      summary: Update database specification
+      deprecated: false
+      description: Updates the resource specifications (CPU, RAM, storage, backup settings) of a database instance. Requires a valid If-Match header with the current ETag value to prevent concurrent modification conflicts.
+      tags:
+        - Databases
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the database instance
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          description: ETag value from the most recent GET request. Required to prevent overwriting concurrent changes.
+          required: true
+          example: '5'
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatabaseRequest'
+        required: true
+      responses:
+        '200':
+          description: Update accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseInstance'
+          headers:
+            ETag:
+              required: false
+              description: Updated version identifier (integer cast to string)
+              schema:
+                type: string
+                example: '6'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version conflict. The ETag value in If-Match header does not match the current version. Fetch latest data and retry.
+          headers: {}
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+    delete:
+      summary: Deprovision database
+      deprecated: false
+      description: Marks a database instance for deletion. The database will be deprovisioned asynchronously. Once marked, the status will change to DELETING.
+      tags:
+        - Databases
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the database instance
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Database marked for deletion
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+  /databases:
+    get:
+      summary: List databases
+      deprecated: false
+      description: Retrieves a list of all database instances for the specified team. Returns an array of database instances with their current status and specifications.
+      tags:
+        - Databases
+      parameters:
+        - name: team_id
+          in: query
+          description: Unique identifier of the team to list databases for
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of databases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatabaseInstance'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+    post:
+      summary: Provision a new database
+      deprecated: false
+      description: Creates a new database instance with the specified resource specifications. The database will be provisioned asynchronously and will initially have a PENDING status.
+      tags:
+        - Databases
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatabaseRequest'
+        required: true
+      responses:
+        '201':
+          description: Accepted and Pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseInstance'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+  /databases/{id}/credentials:
+    get:
+      summary: Retrieve sensitive credentials
+      deprecated: false
+      description: Retrieves the database credentials (username and password) for a specific database instance. This endpoint should be used with caution as it returns sensitive information.
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the database instance
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Credentials retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseCredentials'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+components:
+  schemas:
+    DatabaseInstance:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: payment-service-prod
+        team_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PROVISIONING
+            - READY
+            - FAILED
+            - DELETING
+        status_message:
+          type: string
+          description: Human-readable status from the operator
+        spec:
+          $ref: '#/components/schemas/DatabaseSpec'
+        connection_info:
+          $ref: '#/components/schemas/ConnectionInfo'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by_user_id:
+          type: string
+          format: uuid
+          description: User ID of the user who created this database instance
+      required:
+        - id
+        - name
+        - team_id
+        - status
+        - spec
+    DatabaseSpec:
+      type: object
+      properties:
+        cpu_millicores:
+          type: integer
+          minimum: 100
+        ram_mb:
+          type: integer
+          minimum: 256
+        storage_gb:
+          type: integer
+          minimum: 1
+        is_backup_enabled:
+          type: boolean
+      required:
+        - cpu_millicores
+        - ram_mb
+        - storage_gb
+    ConnectionInfo:
+      type: object
+      description: Connection information for the database. Only available when the database status is READY. Null for databases in PENDING, PROVISIONING, FAILED, or DELETING states.
+      properties:
+        host:
+          type: string
+          description: Database hostname or IP address
+        port:
+          type: integer
+          description: Database port number
+        username:
+          type: string
+          description: Default database username
+        database:
+          type: string
+          description: Default database name
+      nullable: true
+    DatabaseCredentials:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          description: Plaintext password (decrypted by backend)
+    CreateDatabaseRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z0-9-]+$
+          maxLength: 63
+        team_id:
+          type: string
+          format: uuid
+        spec:
+          $ref: '#/components/schemas/DatabaseSpec'
+      required:
+        - name
+        - team_id
+        - spec
+    UpdateDatabaseRequest:
+      type: object
+      properties:
+        spec:
+          $ref: '#/components/schemas/DatabaseSpec'
+      required:
+        - spec
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+      required:
+        - error
+  responses:
+    BadRequest:
+      description: Bad request - malformed request or validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized - authentication token is missing, invalid, or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden - user is authenticated but lacks necessary permissions to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found - the requested resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidcAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC JWT Bearer token authentication. Tokens are obtained from the OIDC provider at https://idp.domain.com
+servers: []
+security: []

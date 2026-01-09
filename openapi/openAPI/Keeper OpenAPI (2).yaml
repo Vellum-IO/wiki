@@ -1,0 +1,821 @@
+openapi: 3.0.1
+info:
+  title: Default module
+  description: Manages the lifecycle of database instances for CNPG databases.
+  version: 1.0.0
+tags:
+  - name: Databases
+  - name: Teams
+  - name: Members
+paths:
+  /databases/{id}:
+    get:
+      summary: Get database details
+      deprecated: false
+      description: >-
+        Retrieves detailed information about a specific database instance,
+        including its current status, specifications, and connection information
+        (if available).
+      tags:
+        - Databases
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          example: ''
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Database details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseInstance'
+          headers:
+            ETag:
+              required: false
+              description: Opaque version identifier (integer cast to string)
+              schema:
+                type: string
+                example: '5'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+    patch:
+      summary: Update database specification
+      deprecated: false
+      description: >-
+        Updates the resource specifications (CPU, RAM, storage, backup settings)
+        of a database instance. Requires a valid If-Match header with the
+        current ETag value to prevent concurrent modification conflicts.
+      tags:
+        - Databases
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the database instance
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+        - name: If-Match
+          in: header
+          description: >-
+            ETag value from the most recent GET request. Required to prevent
+            overwriting concurrent changes.
+          required: true
+          example: '5'
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDatabaseRequest'
+        required: true
+      responses:
+        '200':
+          description: Update accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseInstance'
+          headers:
+            ETag:
+              required: false
+              description: Updated version identifier (integer cast to string)
+              schema:
+                type: string
+                example: '6'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '409':
+          description: >-
+            Version conflict. The ETag value in If-Match header does not match
+            the current version. Fetch latest data and retry.
+          headers: {}
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+    delete:
+      summary: Deprovision database
+      deprecated: false
+      description: >-
+        Marks a database instance for deletion. The database will be
+        deprovisioned asynchronously. Once marked, the status will change to
+        DELETING.
+      tags:
+        - Databases
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the database instance
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Database marked for deletion
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+  /databases:
+    get:
+      summary: List databases
+      deprecated: false
+      description: >-
+        Retrieves a list of all database instances for the specified team.
+        Returns an array of database instances with their current status and
+        specifications.
+      tags:
+        - Databases
+      parameters:
+        - name: team_id
+          in: query
+          description: Unique identifier of the team to list databases for
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of databases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatabaseInstance'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+    post:
+      summary: Provision a new database
+      deprecated: false
+      description: >-
+        Creates a new database instance with the specified resource
+        specifications. The database will be provisioned asynchronously and will
+        initially have a PENDING status.
+      tags:
+        - Databases
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatabaseRequest'
+        required: true
+      responses:
+        '201':
+          description: Accepted and Pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseInstance'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+  /databases/{id}/credentials:
+    get:
+      summary: Retrieve sensitive credentials
+      deprecated: false
+      description: >-
+        Retrieves the database credentials (username and password) for a
+        specific database instance. This endpoint should be used with caution as
+        it returns sensitive information.
+      tags: []
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the database instance
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Credentials retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatabaseCredentials'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+  /teams:
+    get:
+      summary: List teams for the current user
+      deprecated: false
+      description: >-
+        Retrieves a list of all teams that the authenticated user is a member
+        of, including team details and quota information.
+      tags:
+        - Teams
+      parameters: []
+      responses:
+        '200':
+          description: Teams list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+          headers: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+    post:
+      summary: Create a new team
+      deprecated: false
+      description: >-
+        Creates a new team with the specified name. The authenticated user will
+        automatically be added as an owner of the team.
+      tags:
+        - Teams
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+        required: true
+      responses:
+        '201':
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+  /teams/{id}:
+    get:
+      summary: Get team details and quotas
+      deprecated: false
+      description: >-
+        Retrieves detailed information about a specific team, including its
+        name, quota limits, and creation timestamp.
+      tags:
+        - Teams
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+  /teams/{id}/members:
+    get:
+      summary: List members of a team
+      deprecated: false
+      description: >-
+        Retrieves a list of all members belonging to the specified team,
+        including their roles and join dates.
+      tags:
+        - Members
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamMember'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+    post:
+      summary: Add a member to the team
+      deprecated: false
+      description: >-
+        Adds a new member to the team by email address. The user must already
+        exist in the system (have logged in at least once via OIDC). Only team
+        owners can add members.
+      tags:
+        - Members
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+        required: true
+      responses:
+        '201':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+  /teams/{id}/members/{user_id}:
+    delete:
+      summary: Remove a member
+      deprecated: false
+      description: >-
+        Removes a member from the team. Only team owners can remove members. A
+        team must have at least one owner.
+      tags:
+        - Members
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+        - name: user_id
+          in: path
+          description: Unique identifier of the user to remove from the team
+          required: true
+          example: 550e8400-e29b-41d4-a716-446655440000
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Member removed
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          description: Bad request - malformed request or validation error
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          description: Unauthorized - authentication token is missing, invalid, or expired
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden - user is authenticated but lacks necessary permissions to
+            access this resource
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Not found - the requested resource does not exist
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+          description: Internal server error
+      security:
+        - oidcAuth: []
+components:
+  schemas:
+    DatabaseInstance:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: payment-service-prod
+        team_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PROVISIONING
+            - READY
+            - FAILED
+            - DELETING
+        status_message:
+          type: string
+          description: Human-readable status from the operator
+        spec:
+          $ref: '#/components/schemas/DatabaseSpec'
+        connection_info:
+          $ref: '#/components/schemas/ConnectionInfo'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by_user_id:
+          type: string
+          format: uuid
+          description: User ID of the user who created this database instance
+      required:
+        - id
+        - name
+        - team_id
+        - status
+        - spec
+    DatabaseSpec:
+      type: object
+      properties:
+        cpu_millicores:
+          type: integer
+          minimum: 100
+        ram_mb:
+          type: integer
+          minimum: 256
+        storage_gb:
+          type: integer
+          minimum: 1
+        is_backup_enabled:
+          type: boolean
+      required:
+        - cpu_millicores
+        - ram_mb
+        - storage_gb
+    ConnectionInfo:
+      type: object
+      description: >-
+        Connection information for the database. Only available when the
+        database status is READY. Null for databases in PENDING, PROVISIONING,
+        FAILED, or DELETING states.
+      properties:
+        host:
+          type: string
+          description: Database hostname or IP address
+        port:
+          type: integer
+          description: Database port number
+        username:
+          type: string
+          description: Default database username
+        database:
+          type: string
+          description: Default database name
+      nullable: true
+    DatabaseCredentials:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          description: Plaintext password (decrypted by backend)
+    CreateDatabaseRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z0-9-]+$
+          maxLength: 63
+        team_id:
+          type: string
+          format: uuid
+        spec:
+          $ref: '#/components/schemas/DatabaseSpec'
+      required:
+        - name
+        - team_id
+        - spec
+    UpdateDatabaseRequest:
+      type: object
+      properties:
+        spec:
+          $ref: '#/components/schemas/DatabaseSpec'
+      required:
+        - spec
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+      required:
+        - error
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        quota:
+          $ref: '#/components/schemas/TeamQuota'
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - quota
+    TeamQuota:
+      type: object
+      readOnly: true
+      description: >-
+        Resource quota limits for the team. These limits are enforced before
+        provisioning new database instances.
+      properties:
+        limit_instances:
+          type: integer
+          description: Maximum number of database instances the team can provision
+        limit_cpu_millicores:
+          type: integer
+          description: >-
+            Maximum total CPU allocation in millicores across all database
+            instances for the team
+        limit_ram_mb:
+          type: integer
+          description: >-
+            Maximum total RAM allocation in megabytes across all database
+            instances for the team
+        limit_storage_gb:
+          type: integer
+          description: >-
+            Maximum total storage allocation in gigabytes across all database
+            instances for the team
+    TeamMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - owner
+            - member
+        joined_at:
+          type: string
+          format: date-time
+      required:
+        - user_id
+        - email
+        - role
+    CreateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Team name (must be unique)
+      required:
+        - name
+    AddMemberRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: The user must already exist in the system (logged in once via OIDC)
+        role:
+          type: string
+          enum:
+            - owner
+            - member
+          default: member
+      required:
+        - email
+  responses:
+    BadRequest:
+      description: Bad request - malformed request or validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized - authentication token is missing, invalid, or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: >-
+        Forbidden - user is authenticated but lacks necessary permissions to
+        access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found - the requested resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidcAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        OIDC JWT Bearer token authentication. Tokens are obtained from the OIDC
+        provider at https://idp.domain.com
+servers: []
+security:
+  - oidcAuth: []

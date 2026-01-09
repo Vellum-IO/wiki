@@ -1,0 +1,357 @@
+openapi: 3.0.1
+info:
+  title: Keeper Teams Service API
+  description: Manages teams, team members, and team quotas for the database service.
+  version: 1.0.0
+  license:
+    name: Proprietary
+    description: At the moment no one is allowed to use this commercially.
+tags:
+  - name: Teams
+    description: Team management operations
+  - name: Members
+    description: Team member management operations
+paths:
+  /teams:
+    get:
+      summary: List teams for the current user
+      deprecated: false
+      description: Retrieves a list of all teams that the authenticated user is a member of, including team details and quota information.
+      tags:
+        - Teams
+      parameters: []
+      responses:
+        '200':
+          description: Teams list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+          headers: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+    post:
+      summary: Create a new team
+      deprecated: false
+      description: Creates a new team with the specified name. The authenticated user will automatically be added as an owner of the team.
+      tags:
+        - Teams
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+        required: true
+      responses:
+        '201':
+          description: Team created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+  /teams/{id}:
+    get:
+      summary: Get team details and quotas
+      deprecated: false
+      description: Retrieves detailed information about a specific team, including its name, quota limits, and creation timestamp.
+      tags:
+        - Teams
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Team details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+  /teams/{id}/members:
+    get:
+      summary: List members of a team
+      deprecated: false
+      description: Retrieves a list of all members belonging to the specified team, including their roles and join dates.
+      tags:
+        - Members
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamMember'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+    post:
+      summary: Add a member to the team
+      deprecated: false
+      description: Adds a new member to the team by email address. The user must already exist in the system (have logged in at least once via OIDC). Only team owners can add members.
+      tags:
+        - Members
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+        required: true
+      responses:
+        '201':
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+  /teams/{id}/members/{user_id}:
+    delete:
+      summary: Remove a member
+      deprecated: false
+      description: Removes a member from the team. Only team owners can remove members. A team must have at least one owner.
+      tags:
+        - Members
+      parameters:
+        - name: id
+          in: path
+          description: Unique identifier of the team
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+        - name: user_id
+          in: path
+          description: Unique identifier of the user to remove from the team
+          required: true
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Member removed
+          headers: {}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - oidcAuth: []
+components:
+  schemas:
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        quota:
+          $ref: '#/components/schemas/TeamQuota'
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - quota
+    TeamQuota:
+      type: object
+      readOnly: true
+      description: Resource quota limits for the team. These limits are enforced before provisioning new database instances.
+      properties:
+        limit_instances:
+          type: integer
+          description: Maximum number of database instances the team can provision
+        limit_cpu_millicores:
+          type: integer
+          description: Maximum total CPU allocation in millicores across all database instances for the team
+        limit_ram_mb:
+          type: integer
+          description: Maximum total RAM allocation in megabytes across all database instances for the team
+        limit_storage_gb:
+          type: integer
+          description: Maximum total storage allocation in gigabytes across all database instances for the team
+    TeamMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - owner
+            - member
+        joined_at:
+          type: string
+          format: date-time
+      required:
+        - user_id
+        - email
+        - role
+    CreateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+          description: Team name (must be unique)
+      required:
+        - name
+    AddMemberRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: The user must already exist in the system (logged in once via OIDC)
+        role:
+          type: string
+          enum:
+            - owner
+            - member
+          default: member
+      required:
+        - email
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+      required:
+        - error
+  responses:
+    BadRequest:
+      description: Bad request - malformed request or validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized - authentication token is missing, invalid, or expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden - user is authenticated but lacks necessary permissions to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found - the requested resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    oidcAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OIDC JWT Bearer token authentication. Tokens are obtained from the OIDC provider at https://idp.domain.com
+servers: []
+security: []
