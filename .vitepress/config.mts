@@ -6,7 +6,7 @@ export default defineConfig({
 
   title: "Vellum IO Wiki",
   description: "Vellum IO standards and documentation",
-  base: "/wiki/",
+  base: "/keeper-wiki/",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     search: {
