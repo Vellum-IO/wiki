@@ -31,7 +31,7 @@ export default defineConfig({
       {
         text: "Research",
         items: [
-          { text: "Message Queues", link: "/reasearch/message-queue.md" },
+          { text: "Message Queues", link: "/research/message-queue.md" },
           { text: "Storage", link: "/k8s/storage" },
         ],
       },
