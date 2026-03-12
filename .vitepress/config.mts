@@ -24,6 +24,7 @@ export default defineConfig({
         items: [
           { text: "Introduction", link: "/keeper/introduction" },
           { text: "Architecture", link: "/keeper/architecture" },
+          { text: "States", link: "/keeper/states" },
           { text: "Repositories", link: "/keeper/repositories" },
           { text: "Storage Units", link: "/keeper/storage" },
         ],
@@ -31,7 +32,7 @@ export default defineConfig({
       {
         text: "Research",
         items: [
-          { text: "Message Queues", link: "/reasearch/message-queue.md" },
+          { text: "Message Queues", link: "/research/message-queue.md" },
           { text: "Storage", link: "/k8s/storage" },
         ],
       },
